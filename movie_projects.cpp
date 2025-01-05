@@ -1,7 +1,6 @@
 #include <iostream>
-#include <string>
 #include <fstream>
-#include <sstream>
+#include <string>
 #include <vector>
 #include <algorithm>
 #include <random>
@@ -9,123 +8,127 @@
 
 using namespace std;
 
-// Function to shuffle and display matching lines
-void shuffleAndDisplay(vector<string>& lines, int max_line) {
+// Convert a string to lowercase for case-insensitive comparison
+string toLowerCase(const string& str) {
+    string result = str;
+    transform(result.begin(), result.end(), result.begin(), ::tolower);
+    return result;
+}
+
+// Display matching movies, randomized and limited by maxResults
+void displayMatches(const vector<string>& matches, int maxResults) {
+    if (matches.empty()) {
+        cout << "No matches found.\n";
+        return;
+    }
+
+    // Shuffle the matches
+    vector<string> shuffledMatches = matches; // Create a copy to shuffle
     random_device rd;
     mt19937 g(rd());
-    shuffle(lines.begin(), lines.end(), g);
+    shuffle(shuffledMatches.begin(), shuffledMatches.end(), g);
 
-    cout << "\nRandomized matching lines:\n";
-    for (int i = 0; i < min(max_line, (int)lines.size()); i++) {
-        cout << lines[i] << endl;
+    // Display the matches
+    cout << "Movies found (randomized):\n";
+    for (int i = 0; i < min(maxResults, (int)shuffledMatches.size()); ++i) {
+        cout << shuffledMatches[i] << endl;
     }
 }
 
-// Convert a string to lowercase for case-insensitive comparison
-string toLowerCase(const string& str) {
-    string lowerStr = str;
-    transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
-    return lowerStr;
+// Clear the screen
+void clearScreen() {
+#ifdef _WIN32
+    system("CLS"); // Windows
+#else
+    system("clear"); // Linux/Unix/Mac
+#endif
 }
 
 int main() {
-    int max_line = 5; // Maximum number of matching lines to display
-    int option = 0;
-    string search;
     vector<string> matchingLines;
+    string filename = "moviesgenre.txt";
+    int maxResults = 5; // Default max results
+    int option = 0;
 
-    const int boxWidth = 80; // Total width of the box
-    const int innerWidth = boxWidth - 2; // Width for the text inside the box
-
-    // Print top border
-    cout << string(boxWidth, '*') << "\n";
-
-    // Print empty lines with borders
-    for (int row = 0; row < 3; ++row) {
-        cout << "*" << string(innerWidth, ' ') << "*\n";
-    }
-
-    // Centered menu messages
-    vector<string> messages = {
-        "Hello, This Is a Movie Recommendation System",
-        "Enter 1 to search for a movie by genre",
-        "Enter 2 to shuffle and display previous matches",
-        "Enter 3 to clear the screen",
-        "Enter 4 to exit"
+    // Predefined genres
+    vector<string> genres = {
+        "Action", "Adventure", "Animation", "Comedy", "Crime",
+        "Drama", "Fantasy", "Horror", "Romance", "Sci-Fi", "Thriller"
     };
 
-    for (const auto& msg : messages) {
-        int padding = (innerWidth - msg.size()) / 2;
-        cout << "*" << string(padding, ' ') << msg << string(innerWidth - padding - msg.size(), ' ') << "*\n";
-    }
-
-    // Print empty lines with borders and bottom border
-    for (int row = 0; row < 3; ++row) {
-        cout << "*" << string(innerWidth, ' ') << "*\n";
-    }
-    cout << string(boxWidth, '*') << "\n";
-
-    // Main loop for user interaction
     while (true) {
-        cout << "\nChoose an option (1-4): ";
+        // Display the menu
+        cout << "\n===== Movie Recommendation System =====\n";
+        cout << "1. Search for a movie by genre\n";
+        cout << "2. Show previous matches (randomized)\n";
+        cout << "3. Change max results\n";
+        cout << "4. Clear the screen\n";
+        cout << "5. Exit\n";
+        cout << "Choose an option: ";
         cin >> option;
 
-        if (option == 4) {
+        if (option == 5) {
             cout << "Exiting the program. Goodbye!\n";
             break;
         }
         else if (option == 1) {
-            ifstream myfile("moviesgenre.txt");
-            if (!myfile.is_open()) {
-                cerr << "Error: Could not open file 'moviesgenre.txt'\n";
+            // Display available genres
+            cout << "\nAvailable genres:\n";
+            for (const auto& genre : genres) {
+                cout << "- " << genre << endl;
+            }
+
+            // Ask for genre input
+            string searchGenre;
+            cout << "\nEnter the genre you want to search for: ";
+            cin.ignore(); // Clear input buffer
+            getline(cin, searchGenre);
+            searchGenre = toLowerCase(searchGenre);
+
+            // Open the file and search for matching lines
+            ifstream file(filename);
+            if (!file.is_open()) {
+                cout << "Error: Could not open file '" << filename << "'.\n";
                 continue;
             }
 
-            cout << "\nEnter the genre you want to search for: ";
-            cin >> search;
-            search = toLowerCase(search);
-
-            matchingLines.clear(); // Clear previous matches
+            matchingLines.clear();
             string line;
-            int total = 0;
-
-            while (getline(myfile, line)) {
-                string lowerLine = toLowerCase(line);
-                if (lowerLine.find(search) != string::npos) {
+            while (getline(file, line)) {
+                if (toLowerCase(line).find(searchGenre) != string::npos) {
                     matchingLines.push_back(line);
-                    cout << line << endl;
-                    total++;
-
-                    if (total >= max_line) {
-                        cout << "Reached the maximum number of matches (" << max_line << ").\n";
-                        break;
-                    }
                 }
             }
+            file.close();
 
-            if (matchingLines.empty()) {
-                cout << "No matching lines found for genre: " << search << "\n";
-            }
-
-            myfile.close();
+            // Display results
+            displayMatches(matchingLines, maxResults);
         }
         else if (option == 2) {
-            if (!matchingLines.empty()) {
-                shuffleAndDisplay(matchingLines, max_line);
-            }
-            else {
-                cout << "No matching lines to shuffle. Please search first.\n";
-            }
+            // Show previous matches
+            displayMatches(matchingLines, maxResults);
         }
         else if (option == 3) {
-#ifdef _WIN32
-            system("CLS");
-#else
-            system("clear");
-#endif
+            // Change the maximum results
+            cout << "Enter the maximum number of results to display: ";
+            cin >> maxResults;
+
+            if (cin.fail() || maxResults <= 0) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << "Invalid input! Max results must be a positive number.\n";
+                maxResults = 5; // Reset to default
+            }
+            else {
+                cout << "Max results updated to " << maxResults << ".\n";
+            }
+        }
+        else if (option == 4) {
+            // Clear the screen
+            clearScreen();
         }
         else {
-            cout << "Invalid option. Please enter a number between 1 and 4.\n";
+            cout << "Invalid option! Please choose a number between 1 and 5.\n";
         }
     }
 
